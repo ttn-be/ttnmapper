@@ -62,7 +62,7 @@ class NmeaParser(object):
 
                  # Get Fix Status
                  fix_stat = int(self.nmea_segments[6])
-            except ValueError:
+            except (ValueError, IndexError):
                 return False
             
          # Process Location and Speed Data if Fix is GOOD
