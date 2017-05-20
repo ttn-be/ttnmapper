@@ -1,8 +1,20 @@
-#Minimalistic NMEA-0183 message parser
-#Version 0.1 - January 2017
-#Autor: Peter Affolter
-import utime
+#
+# nmea.py
+#
+# Minimalistic NMEA-0183 message parser
+#
+# Copyright (C) 2017, Peter Affolter and Pascal Mainini
+# Licensed under MIT license, see included file LICENSE or
+# http://opensource.org/licenses/MIT
+#
+# History
+# =======
+#
+# 2017-01-25    v.0.1.0     Initial Version
+# 2017-05-19    v.0.1.1     Refactored
+#
 
+import utime
 
 class NmeaParser(object):
     """NMEA Sentence Parser. Creates object that stores all relevant GPS data and statistics.
