@@ -25,6 +25,7 @@ class NmeaParser:
 
         # Raw data segments
         self.nmea_segments = []
+        self.error = None
 
         # General data
         self.timestamp = ()
@@ -46,52 +47,78 @@ class NmeaParser:
             self.longitude, self.altitude, self.fix_status, self.satellites_in_use, self.hdop)
 
     def update(self,  sentence):
-        """Parses a given sentence and updates attributes. Returns True on
-        success, False otherwise."""
+        """Parses a given NMEA sentence string (terminated with \\r\\n) and updates attributes.
+        Returns True on success, False otherwise. Errors are stored in self.error."""
 
-        self.nmea_segments = str(sentence).split(',')
-
-        if len(self.nmea_segments) < 10:
-            # Incomplete sentence
+        # Split data / checksum
+        try:
+            (data, checksum) = sentence.split('*')
+            checksum = int(checksum[:2], 16)        # first two bytes only, skip \r\n
+        except:
+            self.error = 'Missing or invalid checksum.'
             return False
 
-        if self.nmea_segments[0] != "b'$GPGGA":
-            # Only GPGGA sentences are supported.
+        # Calculate checksum
+        calculated = 0
+        for b in bytes(data[1:], 'ascii'):          # $ is not part of checksum
+            calculated ^= b
+
+        if checksum != calculated:
+            self.error = 'Invalid checksum.'
+            return False
+
+        # Split and perform further checks
+
+        self.nmea_segments = data.split(',')
+
+        if self.nmea_segments[0] != '$GPGGA':
+            self.error = 'Unsupported sentence.'
+            return False
+
+        if len(self.nmea_segments) < 10:
+            self.error = 'Incomplete sentence.'
             return False
 
         if len(self.nmea_segments[1]) == 0:
-            # Time not yet synchronized
+            self.error = 'Time not synchronized.'
             return False
 
-        # UTC Timestamp
-        utc_string = self.nmea_segments[1]
-        self.timestamp = ( int(utc_string[0:2]), int(utc_string[2:4]), float(utc_string[4:]) )
+        # Retrieve all relevant data
+        try:
+            # UTC Timestamp
+            utc_string = self.nmea_segments[1]
+            self.timestamp = ( int(utc_string[0:2]), int(utc_string[2:4]), float(utc_string[4:]) )
 
-        # Other data
-        self.fix_status = int(self.nmea_segments[6])
-        self.satellites_in_use = int(self.nmea_segments[7])
-        self.hdop = float(self.nmea_segments[8])        # Horizontal Dilution of Precision
+            # Other data
+            self.fix_status = int(self.nmea_segments[6])
+            self.satellites_in_use = int(self.nmea_segments[7])
+            self.hdop = float(self.nmea_segments[8])        # Horizontal Dilution of Precision
 
-        if self.fix_status == 0:
-            # Don't process position if no fix has been obtained
+            if self.fix_status == 0:
+                self.error = 'No fix obtained.'
+                return False
+
+            self.fix_time = utime.time()
+
+            # Altitude
+            self.altitude = float(self.nmea_segments[9])
+
+            # Latitude
+            l = self.nmea_segments[2]
+            lat_degs = float(l[0:2])
+            lat_mins = float(l[2:])
+            self.latitude = lat_degs + (lat_mins/60)
+
+            # Longitude
+            l = self.nmea_segments[4]
+            lon_degs = float(l[0:3])
+            lon_mins = float(l[3:])
+            self.longitude = lon_degs + (lon_mins/60)
+
+        except Exception as err:
+            self.error = err
             return False
-
-        self.fix_time = utime.time()
-
-        # Altitude
-        self.altitude = float(self.nmea_segments[9])
-
-        # Latitude
-        l = self.nmea_segments[2]
-        lat_degs = float(l[0:2])
-        lat_mins = float(l[2:])
-        self.latitude = lat_degs + (lat_mins/60)
-
-        # Longitude
-        l = self.nmea_segments[4]
-        lon_degs = float(l[0:3])
-        lon_mins = float(l[3:])
-        self.longitude = lon_degs + (lon_mins/60)
-
-        return True
+        else:
+            self.error = None
+            return True
 
