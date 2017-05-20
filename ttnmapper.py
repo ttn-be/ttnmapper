@@ -69,7 +69,8 @@ def gnss_position():
 
     while time.ticks_diff(start,  time.ticks_ms()) < GNSS_TIMEOUT:
         if gnss_uart.any():
-            if nmea.update(gnss_uart.readline()):
+            line = gnss_uart.readline().decode('ascii')
+            if nmea.update(line):
                 return nmea
     return None
 
@@ -107,4 +108,4 @@ pycom.heartbeat(False)      # Turn off hearbeat LED
 
 alarm = Timer.Alarm(update_task, s=SEND_RATE,  periodic=True)
 
-print('ttnmapper - Done!')
+print('ttnmapper -- Done!')
