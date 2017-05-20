@@ -62,36 +62,28 @@ def init_gnss():
 def gnss_position():
     """ Obtain current GNSS position.
 
-    Returns a tuple (latitude,longitude,altitude,hdop) or None if
-    no position obtained.
-    """
+    If a position could have been obtained, returns an instance of NmeaParser
+    containing the data. Otherwise, returns None."""
     nmea = NmeaParser()
     start = time.ticks_ms()
 
-    found = False
-    while not found:
+    while time.ticks_diff(start,  time.ticks_ms()) < GNSS_TIMEOUT:
         if gnss_uart.any():
-            nmea.update(gnss_uart.readline())
-        if nmea.fix_stat & nmea.valid_sentence:
-            found = True
-        if  (time.ticks_diff(start,  time.ticks_ms()) > GNSS_TIMEOUT):
-            return None
+            if nmea.update(gnss_uart.readline()):
+                return nmea
+    return None
 
-    return (nmea.latitude, nmea.longitude, nmea.altitude, nmea.hdop)
- 
 def update_task(alarmtrigger):
     """Periodically run task which tries to get current position and update
        ttnmapper"""
-       
+
     pycom.rgbled(RGB_POS_UPDATE)
     time.sleep(LED_TIMEOUT)
-    position = gnss_position()
+    pos = gnss_position()
 
-    if position:
-        (lat, lon, alt, hdop) = position
-        print('Lat: {}, Lon: {}, Alt: {}, HDOP: {}'.format(lat,lon,alt,hdop))
-        
+    if pos:
         pycom.rgbled(RGB_POS_FOUND)
+        print(pos)
 
     else:
         print('No position obtained!')
