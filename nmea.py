@@ -46,21 +46,32 @@ class NmeaParser:
             self.timestamp[0], self.timestamp[1], self.timestamp[2], self.latitude, 
             self.longitude, self.altitude, self.fix_status, self.satellites_in_use, self.hdop)
 
-    def update(self,  sentence):
-        """Parses a given NMEA sentence string (terminated with \\r\\n) and updates attributes.
+    def update(self, data):
+        """Tries to find a $GPGGA sentence in the data and parses it, storing relevant data as
+        attributes.
         Returns True on success, False otherwise. Errors are stored in self.error."""
 
-        # Split data / checksum
-        try:
-            (data, checksum) = sentence.split('*')
-            checksum = int(checksum[:2], 16)        # first two bytes only, skip \r\n
-        except:
-            self.error = 'Missing or invalid checksum.'
+        if data is None:
+            self.error = 'No data.'
             return False
+
+        try:
+            start = data.index(b'$GPGGA')
+            end = data.index(b'*')
+        except:
+            self.error = 'Sentence not found.'
+            return False
+
+        if start >= end:
+            self.error = 'Sentence not found.'
+            return False
+
+        sentence = data[start+1:end]        # $ is not part of checksum
+        checksum = int(data[end+1:end+3].decode('ascii'), 16)
 
         # Calculate checksum
         calculated = 0
-        for b in bytes(data[1:], 'ascii'):          # $ is not part of checksum
+        for b in sentence:
             calculated ^= b
 
         if checksum != calculated:
@@ -68,19 +79,14 @@ class NmeaParser:
             return False
 
         # Split and perform further checks
+        self.nmea_segments = sentence.decode('ascii').split(',')
 
-        self.nmea_segments = data.split(',')
-
-        if self.nmea_segments[0] != '$GPGGA':
-            self.error = 'Unsupported sentence.'
+        if len(self.nmea_segments[1]) == 0:
+            self.error = 'Time not synchronized.'
             return False
 
         if len(self.nmea_segments) < 10:
             self.error = 'Incomplete sentence.'
-            return False
-
-        if len(self.nmea_segments[1]) == 0:
-            self.error = 'Time not synchronized.'
             return False
 
         # Retrieve all relevant data
