@@ -17,10 +17,14 @@
 # 2017-05-19    v.0.1.0     Refactored
 #
 
+import array
 import pycom
+import socket
 import time
 
+from binascii import hexlify, unhexlify
 from machine import Pin, UART, Timer
+from network import LoRa
 from nmea import NmeaParser
 
 
@@ -36,11 +40,17 @@ GNSS_ENABLE_PIN = 'P8'
 GNSS_UART_PORT  = 1
 GNSS_UART_BAUD  = 9600
 
+# LoRaWAN Configuration
+LORA_APP_EUI = ''
+LORA_APP_KEY = ''
+
 # Colors used for status LED
 RGB_OFF         = 0x000000
-RGB_POS_UPDATE  = 0x302000
-RGB_POS_FOUND   = 0x003000
-RGB_POS_NFOUND  = 0x300000
+RGB_POS_UPDATE  = 0x403000
+RGB_POS_FOUND   = 0x004000
+RGB_POS_NFOUND  = 0x400000
+RGB_LORA_JOIN   = 0x000040
+RGB_LORA_JOINED = 0x004000
 LED_TIMEOUT     = 0.2
 
 
@@ -48,8 +58,14 @@ LED_TIMEOUT     = 0.2
 # Function Definitions
 ################################################################################
 
+def log(msg):
+    """Helper method for logging messages"""
+    print('ttnmapper: {}'.format(msg))
+
 def init_gnss():
     """Initialize the GNSS receiver"""
+
+    log('Initializing GNSS...')
 
     enable = Pin(GNSS_ENABLE_PIN,  mode=Pin.OUT)
     enable(False)
@@ -57,10 +73,39 @@ def init_gnss():
     uart.init(GNSS_UART_BAUD,  bits=8,  parity=None,  stop=1)
     enable(True)
 
+    log('Done!')
+
     return (uart, enable)
 
+def init_lora():
+    """Initialize LoRaWAN connection"""
+
+    log('Initializing LoRaWAN...')
+    pycom.rgbled(RGB_LORA_JOIN)
+
+    lora = LoRa(mode=LoRa.LORAWAN)
+    lora.join(activation=LoRa.OTAA, auth=(unhexlify(LORA_APP_EUI),
+        unhexlify(LORA_APP_KEY)), timeout=0)
+
+    while not lora.has_joined():
+        log('Joining...')
+        pycom.rgbled(RGB_OFF)
+        time.sleep(LED_TIMEOUT)
+        pycom.rgbled(RGB_LORA_JOIN)
+        time.sleep(2.5)
+
+    pycom.rgbled(RGB_OFF)
+
+    # Setup socket
+    sock = socket.socket(socket.AF_LORA, socket.SOCK_RAW)
+    sock.setsockopt(socket.SOL_LORA, socket.SO_DR, 5)      # Set data rate
+    sock.setblocking(False)
+
+    log('Done!')
+    return (lora, sock)
+
 def gnss_position():
-    """ Obtain current GNSS position.
+    """Obtain current GNSS position.
 
     If a position has been obtained, returns an instance of NmeaParser
     containing the data. Otherwise, returns None."""
@@ -75,6 +120,33 @@ def gnss_position():
                 return nmea
     return None
 
+def transmit(nmea):
+    """Encode current position, altitude and hdop and send it using LoRaWAN"""
+
+    data = array.array('B', [0, 0, 0, 0, 0, 0, 0, 0, 0])
+
+    lat = int(((nmea.latitude + 90) / 180) * 16777215)
+    data[0] = (lat >> 16) & 0xff
+    data[1] = (lat >> 8) & 0xff
+    data[2] = lat & 0xff
+
+    lon = int(((nmea.longitude + 180) / 360) * 16777215)
+    data[3] = (lon >> 16) & 0xff
+    data[4] = (lon >> 8) & 0xff
+    data[5] = lon &0xff
+
+    alt = int(nmea.altitude)
+    data[6] = (alt >> 8) & 0xff
+    data[7] = alt & 0xff
+
+    hdop = int(nmea.hdop * 10)
+    data[8] = hdop & 0xff
+
+    message = bytes(data)
+    count = sock.send(message)
+
+    log('Message sent: {} ({} bytes)'.format(hexlify(message).upper(), count))
+
 def update_task(alarmtrigger):
     """Periodically run task which tries to get current position and update
        ttnmapper"""
@@ -85,11 +157,12 @@ def update_task(alarmtrigger):
 
     if pos:
         pycom.rgbled(RGB_POS_FOUND)
-        print(pos)
+        log(pos)
+        transmit(pos)
 
     else:
-        print('No position obtained!')
         pycom.rgbled(RGB_POS_NFOUND)
+        log('No position obtained!')
 
     time.sleep(LED_TIMEOUT)
     pycom.rgbled(RGB_OFF)
@@ -101,12 +174,13 @@ def update_task(alarmtrigger):
 # Main Program
 ################################################################################
 
-print('ttnmapper -- Initializing...')
+log('Starting up...')
 
 pycom.heartbeat(False)      # Turn off hearbeat LED
 
 (gnss_uart, gnss_enable) = init_gnss()
+(lora, sock) = init_lora()
 
 alarm = Timer.Alarm(update_task, s=SEND_RATE,  periodic=True)
 
-print('ttnmapper -- Done!')
+log('Startup completed')
