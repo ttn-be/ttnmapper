@@ -53,7 +53,7 @@ def init_gnss():
 
     enable = Pin(GNSS_ENABLE_PIN,  mode=Pin.OUT)
     enable(False)
-    uart = UART(GNSS_UART_PORT, 9600)
+    uart = UART(GNSS_UART_PORT)
     uart.init(GNSS_UART_BAUD,  bits=8,  parity=None,  stop=1)
     enable(True)
 
@@ -62,8 +62,9 @@ def init_gnss():
 def gnss_position():
     """ Obtain current GNSS position.
 
-    If a position could have been obtained, returns an instance of NmeaParser
+    If a position has been obtained, returns an instance of NmeaParser
     containing the data. Otherwise, returns None."""
+
     nmea = NmeaParser()
     start = time.ticks_ms()
 
