@@ -93,7 +93,7 @@ class NmeaParser:
         try:
             # UTC Timestamp
             utc_string = self.nmea_segments[1]
-            self.timestamp = ( int(utc_string[0:2]), int(utc_string[2:4]), float(utc_string[4:]) )
+            self.timestamp = ( int(utc_string[0:2]), int(utc_string[2:4]), int(utc_string[4:6]) )
 
             # Other data
             self.fix_status = int(self.nmea_segments[6])
