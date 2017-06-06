@@ -106,7 +106,6 @@ def init_lora():
 
 def gnss_position():
     """Obtain current GNSS position.
-
     If a position has been obtained, returns an instance of NmeaParser
     containing the data. Otherwise, returns None."""
 
@@ -115,8 +114,10 @@ def gnss_position():
 
     while time.ticks_diff(start, time.ticks_ms()) < GNSS_TIMEOUT:
         if nmea.update(gnss_uart.readall()):
+            log('Current position: {}'.format(nmea))
             return nmea
 
+    log('No position: {}'.format(nmea.error))
     return None
 
 def transmit(nmea):
@@ -156,12 +157,9 @@ def update_task(alarmtrigger):
 
     if pos:
         pycom.rgbled(RGB_POS_FOUND)
-        log(pos)
         transmit(pos)
-
     else:
         pycom.rgbled(RGB_POS_NFOUND)
-        log('No position obtained!')
 
     time.sleep(LED_TIMEOUT)
     pycom.rgbled(RGB_OFF)
