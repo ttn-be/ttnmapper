@@ -67,10 +67,10 @@ def init_gnss():
 
     log('Initializing GNSS...')
 
-    enable = Pin(GNSS_ENABLE_PIN,  mode=Pin.OUT)
+    enable = Pin(GNSS_ENABLE_PIN, mode=Pin.OUT)
     enable(False)
     uart = UART(GNSS_UART_PORT)
-    uart.init(GNSS_UART_BAUD,  bits=8,  parity=None,  stop=1)
+    uart.init(GNSS_UART_BAUD, bits=8, parity=None, stop=1)
     enable(True)
 
     log('Done!')
@@ -113,11 +113,10 @@ def gnss_position():
     nmea = NmeaParser()
     start = time.ticks_ms()
 
-    while time.ticks_diff(start,  time.ticks_ms()) < GNSS_TIMEOUT:
-        if gnss_uart.any():
-            line = gnss_uart.readline().decode('ascii')
-            if nmea.update(line):
-                return nmea
+    while time.ticks_diff(start, time.ticks_ms()) < GNSS_TIMEOUT:
+        if nmea.update(gnss_uart.readall()):
+            return nmea
+
     return None
 
 def transmit(nmea):
@@ -181,6 +180,6 @@ pycom.heartbeat(False)      # Turn off hearbeat LED
 (gnss_uart, gnss_enable) = init_gnss()
 (lora, sock) = init_lora()
 
-alarm = Timer.Alarm(update_task, s=SEND_RATE,  periodic=True)
+task = Timer.Alarm(update_task, s=SEND_RATE, periodic=True)
 
 log('Startup completed')
