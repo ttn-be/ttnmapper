@@ -8,14 +8,6 @@
 # Licensed under MIT license, see included file LICENSE or
 # http://opensource.org/licenses/MIT
 #
-# History
-# =======
-#
-# 2017-01-25    v.0.0.1     Initial Version, OTAA
-#               v.0.0.2     Energy consumption optimized with timer alarms and 
-#                           idle
-# 2017-05-19    v.0.1.0     Refactored
-#
 
 import array
 import pycom
