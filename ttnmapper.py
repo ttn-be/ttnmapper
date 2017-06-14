@@ -32,17 +32,22 @@ from nmea import NmeaParser
 # Configuration and Constants
 ################################################################################
 
-SEND_RATE       = 30        # Interval for position update + transmission (secs)
+# LoRaWAN Configuration
+LORA_APP_EUI    = '70B3D57EF0001ED4'
+LORA_APP_KEY    = None      # See README.md for instructions!
+LORA_ENABLE_PIN = 'P9'
+
+# Interval between measures transmitted to TTN.
+# Measured airtime of transmission is 56.6 ms, fair use policy limits us to
+# 30 seconds per day (= roughly 500 messages). We default to a 180 second
+# interval (=480 messages / day).
+SEND_RATE       = 180
 
 # GNSS Configuration
 GNSS_TIMEOUT    = 5000      # Timeout for obtaining position (miliseconds)
 GNSS_ENABLE_PIN = 'P8'
 GNSS_UART_PORT  = 1
 GNSS_UART_BAUD  = 9600
-
-# LoRaWAN Configuration
-LORA_APP_EUI = ''
-LORA_APP_KEY = ''
 
 # Colors used for status LED
 RGB_OFF         = 0x000000
@@ -80,10 +85,21 @@ def init_gnss():
 def init_lora():
     """Initialize LoRaWAN connection"""
 
-    log('Initializing LoRaWAN...')
-    pycom.rgbled(RGB_LORA_JOIN)
+    if not Pin(LORA_ENABLE_PIN, mode=Pin.IN, pull=Pin.PULL_UP)():
+        log('LoRa disabled!')
+        return (None, None)
 
     lora = LoRa(mode=LoRa.LORAWAN)
+    log('Initializing LoRaWAN, DEV EUI: {} ...'.format(hexlify(lora.mac())
+        .decode('ascii').upper()))
+
+    if not LORA_APP_KEY:
+        log('ERROR: LoRaWAN APP KEY not set!')
+        log('Send your DEV EUI to thethingsnetwork@bfh.ch to obtain one.')
+        return (None, None)
+
+    pycom.rgbled(RGB_LORA_JOIN)
+
     lora.join(activation=LoRa.OTAA, auth=(unhexlify(LORA_APP_EUI),
         unhexlify(LORA_APP_KEY)), timeout=0)
 
@@ -178,6 +194,7 @@ pycom.heartbeat(False)      # Turn off hearbeat LED
 (gnss_uart, gnss_enable) = init_gnss()
 (lora, sock) = init_lora()
 
-task = Timer.Alarm(update_task, s=SEND_RATE, periodic=True)
+if lora:
+    mapper = Timer.Alarm(update_task, s=SEND_RATE, periodic=True)
 
 log('Startup completed')
