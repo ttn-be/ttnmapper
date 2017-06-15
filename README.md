@@ -14,11 +14,11 @@ To get your own mapper up and running, the following steps are required:
 
 ## Hardware Setup
 
-For mapping, an additional *GNSS (GPS) device* (not part of LoPy) is required, which supports communication using NMEA-0183 and
+For mapping, an additional *GNSS (GPS) receiver* (not part of LoPy) is required, which supports communication using NMEA-0183 and
 provides position data with the `$GPGGA` sentence.
-A connection to the GNSS device is expected using UART 1 (refer to [LoPy Pinout](https://docs.pycom.io/pycom_esp32/_downloads/lopy_pinout.pdf)) with 
-9600 Baud, this may be adjusted in `ttnmapper.py`.
-Additionally, the application provides a pin for enabling/disabling the GNSS device (defaults to `P8`).
+A connection to the receiver is expected on UART 1 (refer to [LoPy pinout](https://docs.pycom.io/pycom_esp32/_downloads/lopy_pinout.pdf)) with 
+9600 Baud; this may be adjusted in `ttnmapper.py`.
+Additionally, an enable pin (defaults to `P8`) can be wired, which resets the receiver upon restart of the application.
 
 ## Configure WLAN
 
@@ -27,21 +27,31 @@ By default, WLAN is turned off to save power. However, to update (using FTP) or 
 * `P11` enables WLAN and joins a network. SSID and authentication must be configured in `boot.py` first (refer to [docs](https://docs.pycom.io/pycom_esp32/library/network.WLAN.html) for more information).
 * `P12` enables an access point with SSID `ttn-be-mapper` and WPA2 password `reppam-eb-ntt` (SSID backwards)
 
+Leaving the pins open disables the WLAN.
+
 ## Install Software
 
 To install ttnmapper, simply upload all Python files (ending in `.py`) to your LoPy's `flash` directory. 
-If you want to join your own WLAN network, be sure to adjust the parameters in `boot.py` first!
+If you want to join your own WLAN network, be sure to adjust the parameters in `boot.py` first, as described before!
 
 ## Obtain TTN application key
 
 [ttnmapper.org](http://ttnmapper.org) retrieves the data required for building the map from specific TTN applications.
 Setting up an application on TTN and having ttnmapper.org connecting to it is out of scope (see the [ttnmapper FAQ](http://ttnmapper.org/faq.php) for details how to do that). 
 
-The code ist preconfigured for the *ttn-be* mapper application (EUI `70B3D57EF0001ED4`), however a per-device Key must be generated before data can be transmitted to the application. In order to obtain your key, please send the device EUI of your LoPy to `thethingsnetwork [at] bfh [dot] ch`. The key must then be configured in `ttnmapper.py`.
+ttnmapper ist preconfigured for the *ttn-be* mapper application (EUI `70B3D57EF0001ED4`), however a per-device Key must be generated before data can be transmitted to the application. In order to obtain a key, please send the device EUI of your LoPy, which is displayed during the boot process, to `thethingsnetwork [at] bfh [dot] ch`. The obtained key must then be set in `ttnmapper.py`.
 
 Having obtained your key, everything should now be ready and you can start searching TTN gateways in your neighbourhood!
 
 # Further Tweaks
+
+## Status LED Codes
+
+ttnmapper displays its current status using the built-in RGB LED of the LoPy. Two main states can be distinguished:
+
+* Joining the TTN network: LED is cycling between blue and off until the network has been joined
+* Mapping position: a periodical task tries to obtain the position from the GNSS receiver. During that task, the LED is 
+  yellow. If position has been determined, it quickly turns green, otherwise red.
 
 ## Update Interval
 
