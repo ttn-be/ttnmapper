@@ -2,7 +2,7 @@ from network import WLAN
 
 ##### Settings for WLAN STA mode #####
 
-WLAN_MODE         = 'ap'
+WLAN_MODE         = 'off'
 #WLAN_SSID         = ''
 #WLAN_AUTH         = (WLAN.WPA2,'')
 
