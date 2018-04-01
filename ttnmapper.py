@@ -18,28 +18,11 @@ from binascii import hexlify, unhexlify
 from machine import Pin, UART, Timer
 from network import LoRa
 from nmea import NmeaParser
-
+from config import *
 
 ################################################################################
 # Configuration and Constants
 ################################################################################
-
-# LoRaWAN Configuration
-LORA_APP_EUI    = '70B3D57EF0001ED4'
-LORA_APP_KEY    = None      # See README.md for instructions!
-LORA_ENABLE_PIN = 'P9'
-
-# Interval between measures transmitted to TTN.
-# Measured airtime of transmission is 56.6 ms, fair use policy limits us to
-# 30 seconds per day (= roughly 500 messages). We default to a 180 second
-# interval (=480 messages / day).
-SEND_RATE       = 180
-
-# GNSS Configuration
-GNSS_TIMEOUT    = 5000      # Timeout for obtaining position (miliseconds)
-GNSS_ENABLE_PIN = 'P8'
-GNSS_UART_PORT  = 1
-GNSS_UART_BAUD  = 9600
 
 # Colors used for status LED
 RGB_OFF         = 0x000000
@@ -77,7 +60,7 @@ def init_gnss():
 def init_lora():
     """Initialize LoRaWAN connection"""
 
-    if not Pin(LORA_ENABLE_PIN, mode=Pin.IN, pull=Pin.PULL_UP)():
+    if not LORA_ENABLE or not Pin(LORA_ENABLE_PIN, mode=Pin.IN, pull=Pin.PULL_UP)():
         log('LoRa disabled!')
         return (None, None)
 

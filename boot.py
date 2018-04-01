@@ -3,10 +3,7 @@ import os
 import machine
 from machine import Pin
 from network import WLAN, Bluetooth
-
-# Settings for WLAN STA mode
-WLAN_SSID = ''
-WLAN_AUTH = (WLAN.WPA2,'')
+from config import *
 
 # Configure USB Serial
 uart = machine.UART(0, 115200)
@@ -23,11 +20,11 @@ wlan.deinit()
 wlan_sta = Pin('P11', mode=Pin.IN, pull=Pin.PULL_UP)
 wlan_ap = Pin('P12', mode=Pin.IN, pull=Pin.PULL_UP)
 
-if not wlan_ap() and wlan_sta():
+if WLAN_MODE.lower() == "ap" or (not wlan_ap() and wlan_sta()):
     print('WLAN: AP mode')
     wlan.init(mode=WLAN.AP, ssid='ttn-be-mapper', auth=(WLAN.WPA2,'reppam-eb-ntt'), channel=7, antenna=WLAN.INT_ANT)
 
-elif not wlan_sta() and wlan_ap():
+elif WLAN_MODE.lower() == "sta" or (not wlan_sta() and wlan_ap()):
     print('WLAN: STA mode')
     wlan.init(mode=WLAN.STA)
     if not wlan.isconnected():
