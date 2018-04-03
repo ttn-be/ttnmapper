@@ -51,12 +51,8 @@ class NmeaParser:
 
         try:
             start = data.index(b'$GPGGA')
-            end = data.index(b'*')
+            end = data.index(b'*', start)
         except:
-            self.error = 'Sentence not found.'
-            return False
-
-        if start >= end:
             self.error = 'Sentence not found.'
             return False
 
