@@ -115,14 +115,16 @@ class NmeaParser:
             lat_degs = float(lat[0:2])
             lat_mins = float(lat[2:])
             self.latitude = lat_degs + (lat_mins/60)
-            self.latitude *= -1 if self.nmea_segments[3].lower() == 's'
+            if self.nmea_segments[3].lower() == 's':
+                self.latitude *= -1
 
             # Longitude
             lon = self.nmea_segments[4]
             lon_degs = float(lon[0:3])
             lon_mins = float(lon[3:])
             self.longitude = lon_degs + (lon_mins/60)
-            self.longitude *= -1 if self.nmea_segments[5].lower() == 'w'
+            if self.nmea_segments[5].lower() == 'w':
+                self.longitude *= -1
 
         except Exception as err:
             self.error = err
