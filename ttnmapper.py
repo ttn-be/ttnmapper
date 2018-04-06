@@ -176,6 +176,6 @@ pycom.heartbeat(False)      # Turn off hearbeat LED
 (lora, sock) = init_lora()
 
 if lora:
-    mapper = Timer.Alarm(update_task, s=SEND_RATE, periodic=True)
+    mapper = Timer.Alarm(update_task, s=LORA_SEND_RATE, periodic=True)
 
 log('Startup completed')
