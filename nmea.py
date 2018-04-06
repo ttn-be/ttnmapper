@@ -10,6 +10,7 @@
 
 import utime
 
+
 class NmeaParser:
     """NMEA sentence parser. update() parses a sentence and stores relevant
     GPS data and statistics as attributes."""
@@ -28,7 +29,7 @@ class NmeaParser:
         self.satellites_in_use = 0
         self.hdop = 0.0
 
-         # Position data
+        # Position data
         self.altitude = 0.0
         self.latitude = 0.0
         self.longitude = 0.0
@@ -36,14 +37,18 @@ class NmeaParser:
     def __str__(self):
         """Return meaningful string representation"""
 
-        return 'T: {}:{}:{}, Lat: {}, Lon: {}, Alt: {}, Fix: {}, Sat: {}, HDOP: {}'.format(
-            self.timestamp[0], self.timestamp[1], self.timestamp[2], self.latitude, 
-            self.longitude, self.altitude, self.fix_status, self.satellites_in_use, self.hdop)
+        return 'T: {}:{}:{}, '.format(
+            self.timestamp[0], self.timestamp[1], self.timestamp[2]) \
+            + 'Lat: {}, Lon: {}, Alt: {}, '.format(
+            self.latitude, self.longitude, self.altitude) \
+            + 'Fix: {}, Sat: {}, HDOP: {}'.format(
+            self.fix_status, self.satellites_in_use, self.hdop)
 
     def update(self, data):
-        """Tries to find a $GPGGA sentence in the data and parses it, storing relevant data as
-        attributes.
-        Returns True on success, False otherwise. Errors are stored in self.error."""
+        """Tries to find a $GPGGA sentence in the data and parses it, storing
+        relevant data as attributes.
+        Returns True on success, False otherwise.
+        Errors are stored in self.error."""
 
         if data is None:
             self.error = 'No data.'
@@ -51,12 +56,8 @@ class NmeaParser:
 
         try:
             start = data.index(b'$GPGGA')
-            end = data.index(b'*')
-        except:
-            self.error = 'Sentence not found.'
-            return False
-
-        if start >= end:
+            end = data.index(b'*', start)
+        except ValueError:
             self.error = 'Sentence not found.'
             return False
 
@@ -87,12 +88,18 @@ class NmeaParser:
         try:
             # UTC Timestamp
             utc_string = self.nmea_segments[1]
-            self.timestamp = ( int(utc_string[0:2]), int(utc_string[2:4]), int(utc_string[4:6]) )
+            self.timestamp = (int(utc_string[0:2]),
+                              int(utc_string[2:4]),
+                              int(utc_string[4:6]))
 
-            # Other data
+            # Type of fix
             self.fix_status = int(self.nmea_segments[6])
+
+            # Satellite count
             self.satellites_in_use = int(self.nmea_segments[7])
-            self.hdop = float(self.nmea_segments[8])        # Horizontal Dilution of Precision
+
+            # Horizontal Dilution of Precision
+            self.hdop = float(self.nmea_segments[8])
 
             if self.fix_status == 0:
                 self.error = 'No fix obtained.'
@@ -104,18 +111,18 @@ class NmeaParser:
             self.altitude = float(self.nmea_segments[9])
 
             # Latitude
-            l = self.nmea_segments[2]
-            lat_degs = float(l[0:2])
-            lat_mins = float(l[2:])
+            lat = self.nmea_segments[2]
+            lat_degs = float(lat[0:2])
+            lat_mins = float(lat[2:])
             self.latitude = lat_degs + (lat_mins/60)
-            if self.nmea_segments[3].lower() == 's': self.latitude *= -1
+            self.latitude *= -1 if self.nmea_segments[3].lower() == 's'
 
             # Longitude
-            l = self.nmea_segments[4]
-            lon_degs = float(l[0:3])
-            lon_mins = float(l[3:])
+            lon = self.nmea_segments[4]
+            lon_degs = float(lon[0:3])
+            lon_mins = float(lon[3:])
             self.longitude = lon_degs + (lon_mins/60)
-            if self.nmea_segments[5].lower() == 'w': self.longitude *= -1
+            self.longitude *= -1 if self.nmea_segments[5].lower() == 'w'
 
         except Exception as err:
             self.error = err
@@ -123,4 +130,3 @@ class NmeaParser:
         else:
             self.error = None
             return True
-
