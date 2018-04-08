@@ -108,7 +108,15 @@ def gnss_position():
     start = time.ticks_ms()
 
     while time.ticks_diff(start, time.ticks_ms()) < GNSS_TIMEOUT:
-        if nmea.update(gnss_uart.readall()):
+        if gnss_uart.any() == 0:
+            continue
+
+        raw = gnss_uart.readall()
+
+        if DEBUG:
+            log('Raw data: {}'.format(raw))
+
+        if nmea.update(raw):
             log('Current position: {}'.format(nmea))
             return nmea
 
@@ -154,7 +162,10 @@ def update_task(alarmtrigger):
 
     if pos:
         pycom.rgbled(RGB_POS_FOUND)
-        transmit(pos)
+        if lora:
+            transmit(pos)
+        else:
+            log('LoRa disabled, not transmitting!')
     else:
         pycom.rgbled(RGB_POS_NFOUND)
 
@@ -175,7 +186,6 @@ pycom.heartbeat(False)      # Turn off hearbeat LED
 (gnss_uart, gnss_enable) = init_gnss()
 (lora, sock) = init_lora()
 
-if lora:
-    mapper = Timer.Alarm(update_task, s=LORA_SEND_RATE, periodic=True)
+mapper = Timer.Alarm(update_task, s=LORA_SEND_RATE, periodic=True)
 
 log('Startup completed')
