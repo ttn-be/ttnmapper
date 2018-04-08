@@ -17,10 +17,11 @@ bt.deinit()
 wlan = WLAN()
 wlan.deinit()
 
-wlan_sta = not Pin('P11', mode=Pin.IN, pull=Pin.PULL_UP)()
-wlan_ap = not Pin('P12', mode=Pin.IN, pull=Pin.PULL_UP)()
 
-if WLAN_MODE.lower() == "ap" or wlan_ap:
+def init_wlan_ap():
+    """Set up WPA2 protected access point with SSID 'ttn-be-mapper'
+    and password 'reppam-eb-ntt'."""
+
     print('WLAN: AP mode')
     wlan.init(mode=WLAN.AP,
               ssid='ttn-be-mapper',
@@ -28,7 +29,9 @@ if WLAN_MODE.lower() == "ap" or wlan_ap:
               channel=7,
               antenna=WLAN.INT_ANT)
 
-elif WLAN_MODE.lower() == "sta" or wlan_sta:
+
+def init_wlan_sta():
+    """Connect to wifi network specified in configuration."""
     print('WLAN: STA mode')
     wlan.init(mode=WLAN.STA)
     if not wlan.isconnected():
@@ -36,5 +39,14 @@ elif WLAN_MODE.lower() == "sta" or wlan_sta:
         while not wlan.isconnected():
             machine.idle()  # save power while waiting
 
+
+if not Pin('P11', mode=Pin.IN, pull=Pin.PULL_UP)():
+    init_wlan_sta()
+elif not Pin('P12', mode=Pin.IN, pull=Pin.PULL_UP)():
+    init_wlan_ap()
+elif WLAN_MODE.lower() == 'sta':
+    init_wlan_sta()
+elif WLAN_MODE.lower() == 'ap':
+    init_wlan_ap()
 else:
     print('WLAN: Disabled')

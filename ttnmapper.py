@@ -63,7 +63,7 @@ def init_lora():
     """Initialize LoRaWAN connection"""
 
     lora_disabled = not Pin(LORA_ENABLE_PIN, mode=Pin.IN, pull=Pin.PULL_UP)()
-    if not LORA_ENABLE or lora_disabled:
+    if lora_disabled or not LORA_ENABLE:
         log('LoRa disabled!')
         return (None, None)
 
