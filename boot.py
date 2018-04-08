@@ -17,6 +17,8 @@ bt.deinit()
 wlan = WLAN()
 wlan.deinit()
 
+DEBUG = False
+
 
 def init_wlan_ap():
     """Set up WPA2 protected access point with SSID 'ttn-be-mapper'
