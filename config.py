@@ -16,8 +16,8 @@ WLAN_MODE         = 'off'
 LORA_MODE         = 'otaa'
 
 # Settings for mode 'otaa'
-LORA_APP_EUI      = '70B3D57EF0001ED4'
-LORA_APP_KEY      = None      # See README.md for instructions!
+LORA_OTAA_EUI     = '70B3D57EF0001ED4'
+LORA_OTAA_KEY     = None      # See README.md for instructions!
 
 # Settings for mode 'abp'
 #LORA_ABP_DEVADDR  = ''
