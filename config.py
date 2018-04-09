@@ -12,10 +12,17 @@ WLAN_MODE         = 'off'
 # LoRaWAN Configuration
 ###############################################################################
 
-LORA_ENABLE       = False
-LORA_ENABLE_PIN   = 'P9'
+# May be either 'otaa', 'abp', or 'off'
+LORA_MODE         = 'otaa'
+
+# Settings for mode 'otaa'
 LORA_APP_EUI      = '70B3D57EF0001ED4'
 LORA_APP_KEY      = None      # See README.md for instructions!
+
+# Settings for mode 'abp'
+#LORA_ABP_DEVADDR  = ''
+#LORA_ABP_NETKEY   = ''
+#LORA_ABP_APPKEY   = ''
 
 # Interval between measures transmitted to TTN.
 # Measured airtime of transmission is 56.6 ms, fair use policy limits us to

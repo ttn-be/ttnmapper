@@ -15,6 +15,7 @@ import socket
 import time
 
 from binascii import hexlify, unhexlify
+from struct import unpack
 from machine import Pin, UART, Timer, idle
 from network import LoRa
 from nmea import NmeaParser
@@ -29,9 +30,11 @@ RGB_OFF         = 0x000000
 RGB_POS_UPDATE  = 0x403000
 RGB_POS_FOUND   = 0x004000
 RGB_POS_NFOUND  = 0x400000
-RGB_LORA_JOIN   = 0x000040
-RGB_LORA_JOINED = 0x004000
+RGB_LORA        = 0x000040
 LED_TIMEOUT     = 0.2
+
+# Pin for enabling/disabling LoRa
+LORA_ENABLE_PIN = 'P9'
 
 # How much is read from GNSS receiver at once
 GNSS_BUF_SIZE   = 1024
@@ -62,36 +65,72 @@ def init_gnss():
     return (uart, enable)
 
 
-def init_lora():
-    """Initialize LoRaWAN connection"""
-
-    lora_disabled = not Pin(LORA_ENABLE_PIN, mode=Pin.IN, pull=Pin.PULL_UP)()
-    if lora_disabled or not LORA_ENABLE:
-        log('LoRa disabled!')
-        return (None, None)
-
+def join_otaa():
+    """Joins the LoRaWAN network using Over The Air Activation (OTAA)"""
     lora = LoRa(mode=LoRa.LORAWAN)
-    log('Initializing LoRaWAN, DEV EUI: {} ...'.format(hexlify(lora.mac())
-        .decode('ascii').upper()))
+    log('Initializing LoRaWAN (OTAA), DEV EUI: {} ...'.format(
+        hexlify(lora.mac()).decode('ascii').upper()))
 
-    if not LORA_APP_KEY:
+    if not LORA_OTAA_KEY:
         log('ERROR: LoRaWAN APP KEY not set!')
         log('Send your DEV EUI to thethingsnetwork@bfh.ch to obtain one.')
-        return (None, None)
+        return None
 
-    pycom.rgbled(RGB_LORA_JOIN)
+    pycom.rgbled(RGB_LORA)
 
-    lora.join(activation=LoRa.OTAA, auth=(unhexlify(LORA_APP_EUI),
-              unhexlify(LORA_APP_KEY)), timeout=0)
+    authentication = (unhexlify(LORA_OTAA_EUI),
+                      unhexlify(LORA_OTAA_KEY))
+
+    lora.join(activation=LoRa.OTAA, auth=authentication, timeout=0)
 
     while not lora.has_joined():
         log('Joining...')
         pycom.rgbled(RGB_OFF)
         time.sleep(LED_TIMEOUT)
-        pycom.rgbled(RGB_LORA_JOIN)
+        pycom.rgbled(RGB_LORA)
         time.sleep(2.5)
 
     pycom.rgbled(RGB_OFF)
+    return lora
+
+
+def join_abp():
+    """Joins the LoRaWAN network using Activation By Personalization (ABP)"""
+    lora = LoRa(mode=LoRa.LORAWAN)
+    log('Initializing LoRaWAN (ABP), DEV EUI: {} ...'.format(
+        hexlify(lora.mac()).decode('ascii').upper()))
+
+    authentication = (unpack(">l", unhexlify(LORA_ABP_DEVADDR))[0],
+                      unhexlify(LORA_ABP_NETKEY),
+                      unhexlify(LORA_ABP_APPKEY))
+
+    lora.join(activation=LoRa.ABP, auth=authentication, timeout=0)
+
+    for _ in range(1, 4):
+        pycom.rgbled(RGB_LORA)
+        time.sleep(LED_TIMEOUT)
+        pycom.rgbled(RGB_OFF)
+        time.sleep(LED_TIMEOUT)
+
+    return lora
+
+
+def init_lora():
+    """Initialize LoRaWAN connection"""
+
+    if not Pin(LORA_ENABLE_PIN, mode=Pin.IN, pull=Pin.PULL_UP)():
+        lora = None
+    else:
+        if LORA_MODE.lower() == 'otaa':
+            lora = join_otaa()
+        elif LORA_MODE.lower() == 'abp':
+            lora = join_abp()
+        else:
+            lora = None
+
+    if lora is None:
+        log('LoRa disabled!')
+        return (None, None)
 
     # Setup socket
     sock = socket.socket(socket.AF_LORA, socket.SOCK_RAW)
@@ -131,6 +170,7 @@ def gnss_position():
 
 def transmit(nmea):
     """Encode current position, altitude and hdop and send it using LoRaWAN"""
+    pycom.rgbled(RGB_LORA)
 
     data = array.array('B', [0, 0, 0, 0, 0, 0, 0, 0, 0])
 
@@ -167,6 +207,7 @@ def update_task(alarmtrigger):
 
     if pos:
         pycom.rgbled(RGB_POS_FOUND)
+        time.sleep(LED_TIMEOUT)
         if lora:
             transmit(pos)
         else:
