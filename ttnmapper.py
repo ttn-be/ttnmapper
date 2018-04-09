@@ -151,9 +151,8 @@ def gnss_position():
 
     buf = memoryview(bytearray(GNSS_BUF_SIZE))
     index = 0
-    while time.ticks_diff(start, time.ticks_ms()) < GNSS_TIMEOUT:
-        if gnss_uart.any() and index < GNSS_BUF_SIZE:
-            index += gnss_uart.readinto(buf[index:])
+    while gnss_uart.any() and index < GNSS_BUF_SIZE:
+        index += gnss_uart.readinto(buf[index:])
 
     raw = bytes(buf)
 

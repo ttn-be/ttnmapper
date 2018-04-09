@@ -34,7 +34,6 @@ LORA_SEND_RATE    = 180
 # GNSS Configuration
 ###############################################################################
 
-GNSS_TIMEOUT      = 5000      # Timeout for obtaining position (miliseconds)
-GNSS_ENABLE_PIN   = 'P8'
 GNSS_UART_PORT    = 1
 GNSS_UART_BAUD    = 9600
+GNSS_ENABLE_PIN   = 'P8'
