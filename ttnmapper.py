@@ -33,6 +33,9 @@ RGB_LORA_JOIN   = 0x000040
 RGB_LORA_JOINED = 0x004000
 LED_TIMEOUT     = 0.2
 
+# How much is read from GNSS receiver at once
+GNSS_BUF_SIZE   = 1024
+
 
 ###############################################################################
 # Function Definitions
@@ -107,18 +110,20 @@ def gnss_position():
     nmea = NmeaParser()
     start = time.ticks_ms()
 
+    buf = memoryview(bytearray(GNSS_BUF_SIZE))
+    index = 0
     while time.ticks_diff(start, time.ticks_ms()) < GNSS_TIMEOUT:
-        if gnss_uart.any() == 0:
-            continue
+        if gnss_uart.any() and index < GNSS_BUF_SIZE:
+            index += gnss_uart.readinto(buf[index:])
 
-        raw = gnss_uart.readall()
+    raw = bytes(buf)
 
-        if DEBUG:
-            log('Raw data: {}'.format(raw))
+    if DEBUG:
+        log('Raw data: {}'.format(raw))
 
-        if nmea.update(raw):
-            log('Current position: {}'.format(nmea))
-            return nmea
+    if nmea.update(raw):
+        log('Current position: {}'.format(nmea))
+        return nmea
 
     log('No position: {}'.format(nmea.error))
     return None
