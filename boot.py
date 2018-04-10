@@ -17,6 +17,7 @@ bt.deinit()
 wlan = WLAN()
 wlan.deinit()
 
+# Disable debug logging by default, may be enabled later on in config.py
 DEBUG = False
 
 
@@ -34,6 +35,7 @@ def init_wlan_ap():
 
 def init_wlan_sta():
     """Connect to wifi network specified in configuration."""
+
     print('WLAN: STA mode')
     wlan.init(mode=WLAN.STA)
     if not wlan.isconnected():
