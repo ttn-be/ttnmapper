@@ -16,14 +16,14 @@ To get your own mapper up and running, the following steps are required:
 
 For mapping, an additional *GNSS (GPS) receiver* (not part of LoPy) is required, which supports communication using NMEA-0183 and
 provides position data with the `$GPGGA` sentence.
-A connection to this receiver is expected on UART 1 (refer to [LoPy pinout](https://docs.pycom.io/pycom_esp32/_downloads/lopy_pinout.pdf)) with 9600 Baud; this may be adjusted in `config.py`.
+A connection to this receiver is expected on UART 1 (refer to [LoPy pinout](https://docs.pycom.io/chapter/datasheets/downloads/lopy-pinout.pdf)) with 9600 Baud; this may be adjusted in `config.py`.
 Additionally, an enable pin (defaults to `P8`) can be wired, which resets the receiver upon restart of the application.
 
 ## Configure WLAN
 
 By default, WLAN is turned off to save power. However, to update (using FTP) or interact (using telnet) with the LoPy, a wireless connection may be used. By pulling one of the following pins to *ground*, the LoPy may be configured with enabled WLAN as follows:
 
-* `P11` enables WLAN and joins a network. SSID and authentication must be configured in `config.py` first (refer to [docs](https://docs.pycom.io/pycom_esp32/library/network.WLAN.html) for more information).
+* `P11` enables WLAN and joins a network. SSID and authentication must be configured in `config.py` first (refer to [docs](https://docs.pycom.io/chapter/firmwareapi/pycom/network/wlan.html) for more information).
 * `P12` enables an access point with SSID `ttn-be-mapper` and WPA2 password `reppam-eb-ntt` (SSID backwards)
 
 Leaving the pins open disables the WLAN. By setting `WLAN_MODE` in `config.py` to *'sta'* (=P11) or *'ap'* (=P12), the respective setting may be configured permanently.
