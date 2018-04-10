@@ -15,49 +15,39 @@ import socket
 import time
 
 from binascii import hexlify, unhexlify
-from machine import Pin, UART, Timer
+from struct import unpack
+from machine import Pin, UART, Timer, idle
 from network import LoRa
 from nmea import NmeaParser
+from config import *
 
-
-################################################################################
+###############################################################################
 # Configuration and Constants
-################################################################################
-
-# LoRaWAN Configuration
-LORA_APP_EUI    = '70B3D57EF0001ED4'
-LORA_APP_KEY    = None      # See README.md for instructions!
-LORA_ENABLE_PIN = 'P9'
-
-# Interval between measures transmitted to TTN.
-# Measured airtime of transmission is 56.6 ms, fair use policy limits us to
-# 30 seconds per day (= roughly 500 messages). We default to a 180 second
-# interval (=480 messages / day).
-SEND_RATE       = 180
-
-# GNSS Configuration
-GNSS_TIMEOUT    = 5000      # Timeout for obtaining position (miliseconds)
-GNSS_ENABLE_PIN = 'P8'
-GNSS_UART_PORT  = 1
-GNSS_UART_BAUD  = 9600
+###############################################################################
 
 # Colors used for status LED
 RGB_OFF         = 0x000000
 RGB_POS_UPDATE  = 0x403000
 RGB_POS_FOUND   = 0x004000
 RGB_POS_NFOUND  = 0x400000
-RGB_LORA_JOIN   = 0x000040
-RGB_LORA_JOINED = 0x004000
+RGB_LORA        = 0x000040
 LED_TIMEOUT     = 0.2
 
+# Pin for enabling/disabling LoRa
+LORA_ENABLE_PIN = 'P9'
 
-################################################################################
+# How much is read from GNSS receiver at once
+GNSS_BUF_SIZE   = 1024
+
+
+###############################################################################
 # Function Definitions
-################################################################################
+###############################################################################
 
 def log(msg):
     """Helper method for logging messages"""
     print('ttnmapper: {}'.format(msg))
+
 
 def init_gnss():
     """Initialize the GNSS receiver"""
@@ -74,35 +64,73 @@ def init_gnss():
 
     return (uart, enable)
 
-def init_lora():
-    """Initialize LoRaWAN connection"""
 
-    if not Pin(LORA_ENABLE_PIN, mode=Pin.IN, pull=Pin.PULL_UP)():
-        log('LoRa disabled!')
-        return (None, None)
-
+def join_otaa():
+    """Joins the LoRaWAN network using Over The Air Activation (OTAA)"""
     lora = LoRa(mode=LoRa.LORAWAN)
-    log('Initializing LoRaWAN, DEV EUI: {} ...'.format(hexlify(lora.mac())
-        .decode('ascii').upper()))
+    log('Initializing LoRaWAN (OTAA), DEV EUI: {} ...'.format(
+        hexlify(lora.mac()).decode('ascii').upper()))
 
-    if not LORA_APP_KEY:
+    if not LORA_OTAA_KEY:
         log('ERROR: LoRaWAN APP KEY not set!')
         log('Send your DEV EUI to thethingsnetwork@bfh.ch to obtain one.')
-        return (None, None)
+        return None
 
-    pycom.rgbled(RGB_LORA_JOIN)
+    pycom.rgbled(RGB_LORA)
 
-    lora.join(activation=LoRa.OTAA, auth=(unhexlify(LORA_APP_EUI),
-        unhexlify(LORA_APP_KEY)), timeout=0)
+    authentication = (unhexlify(LORA_OTAA_EUI),
+                      unhexlify(LORA_OTAA_KEY))
+
+    lora.join(activation=LoRa.OTAA, auth=authentication, timeout=0)
 
     while not lora.has_joined():
         log('Joining...')
         pycom.rgbled(RGB_OFF)
         time.sleep(LED_TIMEOUT)
-        pycom.rgbled(RGB_LORA_JOIN)
+        pycom.rgbled(RGB_LORA)
         time.sleep(2.5)
 
     pycom.rgbled(RGB_OFF)
+    return lora
+
+
+def join_abp():
+    """Joins the LoRaWAN network using Activation By Personalization (ABP)"""
+    lora = LoRa(mode=LoRa.LORAWAN)
+    log('Initializing LoRaWAN (ABP), DEV EUI: {} ...'.format(
+        hexlify(lora.mac()).decode('ascii').upper()))
+
+    authentication = (unpack(">l", unhexlify(LORA_ABP_DEVADDR))[0],
+                      unhexlify(LORA_ABP_NETKEY),
+                      unhexlify(LORA_ABP_APPKEY))
+
+    lora.join(activation=LoRa.ABP, auth=authentication, timeout=0)
+
+    for _ in range(1, 4):
+        pycom.rgbled(RGB_LORA)
+        time.sleep(LED_TIMEOUT)
+        pycom.rgbled(RGB_OFF)
+        time.sleep(LED_TIMEOUT)
+
+    return lora
+
+
+def init_lora():
+    """Initialize LoRaWAN connection"""
+
+    if not Pin(LORA_ENABLE_PIN, mode=Pin.IN, pull=Pin.PULL_UP)():
+        lora = None
+    else:
+        if LORA_MODE.lower() == 'otaa':
+            lora = join_otaa()
+        elif LORA_MODE.lower() == 'abp':
+            lora = join_abp()
+        else:
+            lora = None
+
+    if lora is None:
+        log('LoRa disabled!')
+        return (None, None)
 
     # Setup socket
     sock = socket.socket(socket.AF_LORA, socket.SOCK_RAW)
@@ -112,24 +140,34 @@ def init_lora():
     log('Done!')
     return (lora, sock)
 
+
 def gnss_position():
     """Obtain current GNSS position.
     If a position has been obtained, returns an instance of NmeaParser
     containing the data. Otherwise, returns None."""
 
-    nmea = NmeaParser()
-    start = time.ticks_ms()
+    buf = memoryview(bytearray(GNSS_BUF_SIZE))
+    index = 0
+    while gnss_uart.any() and index < GNSS_BUF_SIZE:
+        index += gnss_uart.readinto(buf[index:])
 
-    while time.ticks_diff(start, time.ticks_ms()) < GNSS_TIMEOUT:
-        if nmea.update(gnss_uart.readall()):
-            log('Current position: {}'.format(nmea))
-            return nmea
+    raw = bytes(buf)
+
+    if DEBUG:
+        log('Raw data: {}'.format(raw))
+
+    nmea = NmeaParser()
+    if nmea.update(raw):
+        log('Current position: {}'.format(nmea))
+        return nmea
 
     log('No position: {}'.format(nmea.error))
     return None
 
+
 def transmit(nmea):
     """Encode current position, altitude and hdop and send it using LoRaWAN"""
+    pycom.rgbled(RGB_LORA)
 
     data = array.array('B', [0, 0, 0, 0, 0, 0, 0, 0, 0])
 
@@ -141,7 +179,7 @@ def transmit(nmea):
     lon = int(((nmea.longitude + 180) / 360) * 16777215)
     data[3] = (lon >> 16) & 0xff
     data[4] = (lon >> 8) & 0xff
-    data[5] = lon &0xff
+    data[5] = lon & 0xff
 
     alt = int(nmea.altitude)
     data[6] = (alt >> 8) & 0xff
@@ -155,6 +193,7 @@ def transmit(nmea):
 
     log('Message sent: {} ({} bytes)'.format(hexlify(message).upper(), count))
 
+
 def update_task(alarmtrigger):
     """Periodically run task which tries to get current position and update
        ttnmapper"""
@@ -165,19 +204,23 @@ def update_task(alarmtrigger):
 
     if pos:
         pycom.rgbled(RGB_POS_FOUND)
-        transmit(pos)
+        time.sleep(LED_TIMEOUT)
+        if lora:
+            transmit(pos)
+        else:
+            log('LoRa disabled, not transmitting!')
     else:
         pycom.rgbled(RGB_POS_NFOUND)
 
     time.sleep(LED_TIMEOUT)
     pycom.rgbled(RGB_OFF)
 
-    machine.idle()
+    idle()
 
 
-################################################################################
+###############################################################################
 # Main Program
-################################################################################
+###############################################################################
 
 log('Starting up...')
 
@@ -186,7 +229,6 @@ pycom.heartbeat(False)      # Turn off hearbeat LED
 (gnss_uart, gnss_enable) = init_gnss()
 (lora, sock) = init_lora()
 
-if lora:
-    mapper = Timer.Alarm(update_task, s=SEND_RATE, periodic=True)
+mapper = Timer.Alarm(update_task, s=LORA_SEND_RATE, periodic=True)
 
 log('Startup completed')
