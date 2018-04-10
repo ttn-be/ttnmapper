@@ -146,9 +146,6 @@ def gnss_position():
     If a position has been obtained, returns an instance of NmeaParser
     containing the data. Otherwise, returns None."""
 
-    nmea = NmeaParser()
-    start = time.ticks_ms()
-
     buf = memoryview(bytearray(GNSS_BUF_SIZE))
     index = 0
     while gnss_uart.any() and index < GNSS_BUF_SIZE:
@@ -159,6 +156,7 @@ def gnss_position():
     if DEBUG:
         log('Raw data: {}'.format(raw))
 
+    nmea = NmeaParser()
     if nmea.update(raw):
         log('Current position: {}'.format(nmea))
         return nmea
