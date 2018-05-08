@@ -5,6 +5,9 @@ from machine import Pin
 from network import WLAN, Bluetooth
 from config import *
 
+# Disable debug logging by default, may be enabled later on in config.py
+DEBUG = False
+
 # Configure USB Serial
 uart = machine.UART(0, 115200)
 os.dupterm(uart)
@@ -16,9 +19,6 @@ bt.deinit()
 # Configure WLAN
 wlan = WLAN()
 wlan.deinit()
-
-# Disable debug logging by default, may be enabled later on in config.py
-DEBUG = False
 
 
 def init_wlan_ap():
