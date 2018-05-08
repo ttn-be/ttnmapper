@@ -45,7 +45,7 @@ There are two possibilities to join the TTN network and transmit position data t
 
 ### Set up your own TTN application
 
-If you do not want to use the *ttn-be* application, you can set up your own using the TTN console and configure the parameters in `config.py` accordingly, depending on *ABP* or *OTAA* activation of your device. [This decoder](https://github.com/ttnmapper/gps-node-examples/blob/master/sodaq-one-ttnmapper/decoder.js) works for the transmitted data and can be deployed in the TTN console. However, setting up and configuring a TTN application for ttnmapper.org is out of scope of this documentation, see the [ttnmapper FAQ](http://ttnmapper.org/faq.php) for details on how to do that.
+If you do not want to use the *ttn-be* application, you can set up your own using the TTN console and configure the parameters in `config.py` accordingly, depending on *ABP* or *OTAA* activation of your device. [This decoder](https://github.com/ttn-be/gps-node-examples/blob/master/Sodaq/sodaq-one-ttnmapper/decoder.js) works for the transmitted data and can be deployed in the TTN console. However, setting up and configuring a TTN application for ttnmapper.org is out of scope of this documentation, see the [ttnmapper FAQ](http://ttnmapper.org/faq.php) for details on how to do that.
 
 
 # Further Tweaks
